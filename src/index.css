@@ -1,0 +1,44 @@
+/* root variables */
+:root {
+  --primary-color: #e3e3e3;
+  --primary-text: #181818;
+  --secondary-text: #575757;
+  --background-color: #f5f5f5;
+  --text-color: #fff;
+  --robotics-font: "Orbitron", sans-serif;
+  --primary-font: arial, sans-serif;
+}
+
+/* general styles */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* global style */
+html {
+  scroll-behavior: smooth;
+}
+
+body::-webkit-scrollbar {
+  display: none;
+  width: 100%;
+}
+
+body {
+  background-color: var(--primary-color);
+  font-family: var(--robotics-font);
+  color: var(--primary-text);
+}
+
+
+
+@font-face {
+  font-family: "Orbitron";
+  src: url("https://fonts.gstatic.com/s/orbitron/v35/yMJRMIlzdpvBhQQL_Qq7dy0.woff2")
+    format("woff2");
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}

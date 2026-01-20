@@ -1,0 +1,84 @@
+/* responsive.css */
+
+/* --- Mobile Devices (Phones) --- */
+@media (max-width: 767px) {
+  /* Navbar */
+  .nav-bar-container {
+    padding: 10px 20px;
+    flex-direction: row; /* Keep row */
+    justify-content: space-between;
+  }
+  
+  .navbar-title h1 {
+    font-size: 1.5rem !important; /* Smaller logo */
+  }
+
+  .lang-container {
+    padding: 6px 12px !important;
+  }
+  .lang-container span {
+    display: none; /* Hide language name on mobile to save space */
+  }
+
+  /* Start Overlay */
+  .start-title {
+    font-size: 2.5rem !important; /* Smaller title */
+  }
+  .start-subtitle {
+    font-size: 1rem !important;
+    padding: 0 20px;
+  }
+  .start-btn {
+    padding: 12px 24px !important;
+  }
+  .start-btn span {
+    font-size: 1rem !important;
+  }
+
+  /* Assistant Modal */
+  .assistant-modal {
+    padding: 0; 
+  }
+  .assistant-container {
+    width: 100% !important;
+    height: 100% !important;
+    max-width: none !important;
+    border-radius: 0 !important; /* Full screen on mobile */
+  }
+  .assistant-header h2 {
+    font-size: 1rem;
+  }
+}
+
+/* --- Tablet Devices (iPads, etc.) --- */
+@media (min-width: 768px) and (max-width: 1023px) {
+  /* Navbar */
+  .navbar-title h1 {
+    font-size: 2rem !important;
+  }
+
+  /* Assistant Modal */
+  .assistant-container {
+    width: 80% !important;
+    height: 70vh !important;
+  }
+
+  /* Start Overlay */
+  .start-title {
+    font-size: 4rem !important;
+  }
+}
+
+/* --- Desktop Devices (Large Screens) --- */
+@media (min-width: 1024px) {
+  /* Ensure max-width constraints are respected */
+  .nav-bar-container {
+    max-width: 1280px;
+    margin: 0 auto;
+  }
+
+  /* Refine large scale if needed */
+  .start-title {
+    font-size: 5rem !important;
+  }
+}
