@@ -1,13 +1,14 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { useLanguage, LANGUAGES } from '../contexts/LanguageContext'
+import { isMobile } from 'react-device-detect'
 
 const NEXTBOT = {
   name: 'nextbot',
   rate: 0.95,
   pitch: 0.9,
   volume: 1,
-  
+
   // Multilingual content
   content: {
     EN: {
@@ -69,19 +70,19 @@ export function useAssistant() {
   const scheduledTimeouts = useRef({})
   const { getCurrentUser } = useAuth()
   const { currentLang } = useLanguage()
-  
+
   // Get content based on language
   const content = NEXTBOT.content[currentLang] || NEXTBOT.content['EN']
 
   // --- Persistence Helpers ---
   const loadReminders = () => {
-    try { return JSON.parse(localStorage.getItem(REM_KEY) || '[]'); } 
+    try { return JSON.parse(localStorage.getItem(REM_KEY) || '[]'); }
     catch { return []; }
   }
   const saveReminders = (arr) => localStorage.setItem(REM_KEY, JSON.stringify(arr))
 
   const loadTodos = () => {
-    try { return JSON.parse(localStorage.getItem(TODO_KEY) || '[]'); } 
+    try { return JSON.parse(localStorage.getItem(TODO_KEY) || '[]'); }
     catch { return []; }
   }
   const saveTodos = (arr) => localStorage.setItem(TODO_KEY, JSON.stringify(arr))
@@ -95,48 +96,48 @@ export function useAssistant() {
     let voices = synth.getVoices()
 
     const speakNow = () => {
-        synth.cancel()
-        const ut = new SpeechSynthesisUtterance(text)
+      synth.cancel()
+      const ut = new SpeechSynthesisUtterance(text)
 
-        // User settings overrides
-        const user = getCurrentUser()
-        const settings = user?.settings || {}
+      // User settings overrides
+      const user = getCurrentUser()
+      const settings = user?.settings || {}
 
 
-        ut.rate = options.rate || settings.voiceRate || NEXTBOT.rate
-        ut.pitch = options.pitch || settings.voicePitch || NEXTBOT.pitch
-        ut.volume = options.volume || settings.voiceVolume || NEXTBOT.volume
-        
-        // Use Global Language
-        const targetLangCode = LANGUAGES[currentLang]?.code || 'en-US'
-        ut.lang = options.lang || settings.language || targetLangCode
+      ut.rate = options.rate || settings.voiceRate || NEXTBOT.rate
+      ut.pitch = options.pitch || settings.voicePitch || NEXTBOT.pitch
+      ut.volume = options.volume || settings.voiceVolume || NEXTBOT.volume
 
-        // Try to get custom voice, prioritize language match
-        let preferred = null
-        if (settings.preferredVoice) {
-            preferred = voices.find(v => v.name === settings.preferredVoice)
-        }
-        if (!preferred) {
-            // Find a voice that matches the language
-            preferred = voices.find(v => v.lang.startsWith(targetLangCode.split('-')[0]))
-        }
-        if (preferred) ut.voice = preferred
+      // Use Global Language
+      const targetLangCode = LANGUAGES[currentLang]?.code || 'en-US'
+      ut.lang = options.lang || settings.language || targetLangCode
 
-        ut.onstart = () => window.dispatchEvent(new CustomEvent('bot-speaking-start'))
-        ut.onend = () => window.dispatchEvent(new CustomEvent('bot-speaking-end'))
-        ut.onerror = () => window.dispatchEvent(new CustomEvent('bot-speaking-end'))
+      // Try to get custom voice, prioritize language match
+      let preferred = null
+      if (settings.preferredVoice) {
+        preferred = voices.find(v => v.name === settings.preferredVoice)
+      }
+      if (!preferred) {
+        // Find a voice that matches the language
+        preferred = voices.find(v => v.lang.startsWith(targetLangCode.split('-')[0]))
+      }
+      if (preferred) ut.voice = preferred
+
+      ut.onstart = () => window.dispatchEvent(new CustomEvent('bot-speaking-start'))
+      ut.onend = () => window.dispatchEvent(new CustomEvent('bot-speaking-end'))
+      ut.onerror = () => window.dispatchEvent(new CustomEvent('bot-speaking-end'))
 
       synth.speak(ut)
     }
 
     if (voices.length === 0) {
-        synth.onvoiceschanged = () => {
-          voices = synth.getVoices()
-          speakNow()
-          synth.onvoiceschanged = null
-        }
-    } else {
+      synth.onvoiceschanged = () => {
+        voices = synth.getVoices()
         speakNow()
+        synth.onvoiceschanged = null
+      }
+    } else {
+      speakNow()
     }
 
   }, [getCurrentUser, currentLang])
@@ -156,11 +157,11 @@ export function useAssistant() {
     scheduledTimeouts.current[id] = setTimeout(() => {
       speak(`Reminder: ${reminder.text}`)
       addMessage(`Reminder: ${reminder.text}`, 'bot')
-      
+
       const current = loadReminders()
       const updated = current.filter(r => r.id !== id)
       saveReminders(updated)
-      
+
       delete scheduledTimeouts.current[id]
     }, ms)
   }, [speak, addMessage])
@@ -169,7 +170,7 @@ export function useAssistant() {
     const rems = loadReminders()
     rems.forEach(r => scheduleReminder(r))
     const timeouts = scheduledTimeouts.current
-    
+
     return () => {
       Object.values(timeouts).forEach(t => clearTimeout(t))
     }
@@ -210,7 +211,7 @@ export function useAssistant() {
 
       const when = Date.now() + ms
       const newR = { id: 'r:' + Date.now() + Math.random(), text: what, time: when }
-      
+
       const all = loadReminders()
       all.push(newR)
       saveReminders(all)
@@ -257,53 +258,91 @@ export function useAssistant() {
 
     // 7. Clear Chat
     if (/clear chat|clear history/i.test(text)) {
-        setMessages([])
-        speak("Chat cleared.")
-        return
+      setMessages([])
+      speak("Chat cleared.")
+      return
     }
 
-    // 8. System Commands (Open Apps)
+    // 8. System Commands / Mobile Actions
+    if (/(?:call|dial)\s+(.+)/i.test(text) && isMobile) {
+      const number = text.match(/(?:call|dial)\s+(.+)/i)[1].replace(/\D/g, '')
+      const resp = `Calling ${number}...`
+      speak(resp)
+      addMessage(resp, 'bot', true)
+      window.open(`tel:${number}`)
+      return
+    }
+
     const sysMatch = text.match(/(?:open|start|launch)\s+(.+)/i)
-    if (sysMatch && !text.match(/^search/i)) { // Avoid conflict with search
-        const appName = sysMatch[1].trim()
-        // Filter out "google" or "youtube" if we want those to remain web searches? 
-        // For now, let's treat "open google" as a system command if user wants, 
-        // but typically "open notepad" is what we target.
-        
-        const resp = `Opening ${appName}...`
-        speak(resp)
-        addMessage(resp, 'bot', true)
-        
-        try {
-            fetch('http://localhost:3002/command', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ command: appName })
-            }).catch(err => {
-                console.error("Bridge Error:", err)
-                addMessage("I couldn't reach the system bridge. Is server.js running?", 'bot')
-            })
-        } catch (e) {
-            console.error(e)
+    if (sysMatch && !text.match(/^search/i)) {
+      const appName = sysMatch[1].trim()
+
+      if (isMobile) {
+        // Mobile App Deep Linking (Naive approach for common apps)
+        const mobileApps = {
+          'whatsapp': 'whatsapp://',
+          'twitter': 'twitter://',
+          'instagram': 'instagram://',
+          'facebook': 'fb://',
+          'youtube': 'youtube://',
+          'spotify': 'spotify://',
+          'maps': 'maps://',
+          'mail': 'mailto:',
+          'calendar': 'calshow:',
+        }
+
+        const scheme = Object.entries(mobileApps).find(([k]) => appName.includes(k))?.[1]
+
+        if (scheme) {
+          const resp = `Opening ${appName}...`
+          speak(resp)
+          addMessage(resp, 'bot', true)
+          window.location.href = scheme
+        } else {
+          const resp = `Searching for ${appName} on mobile...`
+          speak(resp)
+          addMessage(resp, 'bot', true)
+          // Fallback to search if we don't know the scheme
+          setTimeout(() => window.open(`https://www.google.com/search?q=${appName}`, '_blank'), 1000)
         }
         return
+      }
+
+      // Desktop Behavior (Bridge)
+      const resp = `Opening ${appName} on desktop...`
+      speak(resp)
+      addMessage(resp, 'bot', true)
+
+      try {
+        fetch('http://localhost:3002/command', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ command: appName })
+        }).catch(err => {
+          console.error("Bridge Error:", err)
+          addMessage("I couldn't reach the system bridge. Is server.js running?", 'bot')
+        })
+      } catch (e) {
+        console.error(e)
+      }
+      return
     }
 
     // 9. Camera Control (Shutdown/Disable)
     if (/(shut down|turn off|disable) (the )?(camera|webcam|visual input)/i.test(text)) {
-        window.dispatchEvent(new CustomEvent('shutdown-camera'))
-        const resp = "Visual input systems offline."
-        speak(resp)
-        addMessage(resp, 'bot', true)
-        return
+      window.dispatchEvent(new CustomEvent('shutdown-camera'))
+      const resp = "Visual input systems offline."
+      speak(resp)
+      addMessage(resp, 'bot', true)
+      return
     }
 
     if (/(turn on|enable|start) (the )?(camera|webcam|visual input)/i.test(text)) {
-        window.dispatchEvent(new CustomEvent('start-camera'))
-        const resp = "Visual input systems online."
-        speak(resp)
-        addMessage(resp, 'bot', true)
-        return
+      window.dispatchEvent(new CustomEvent('start-camera'))
+      const resp = "Visual input systems online."
+      speak(resp)
+      addMessage(resp, 'bot', true)
+      return
     }
 
     // Fallback
@@ -311,7 +350,7 @@ export function useAssistant() {
     speak(err)
     addMessage(err, 'bot', true)
 
-  }, [speak, addMessage, scheduleReminder])
+  }, [speak, addMessage, scheduleReminder, content])
 
   // --- Recognition Setup ---
   // Use a ref to track if we *should* be listening, to handle auto-restart
@@ -339,25 +378,25 @@ export function useAssistant() {
       // If error is 'no-speech' or similar, we might want to ignore.
       // If 'not-allowed', we should stop.
       if (event.error === 'not-allowed') {
-          shouldListenRef.current = false
-          setIsListening(false)
-          setError('Microphone access denied. Please allow microphone permissions.')
+        shouldListenRef.current = false
+        setIsListening(false)
+        setError('Microphone access denied. Please allow microphone permissions.')
       } else if (event.error === 'no-speech') {
-          // Ignore, just keep listening (or let it restart via onend if continuous is tricky)
+        // Ignore, just keep listening (or let it restart via onend if continuous is tricky)
       } else {
-          setError(`Speech recognition error: ${event.error}`)
+        setError(`Speech recognition error: ${event.error}`)
       }
     }
 
     recognition.onend = () => {
       // If we are supposed to be listening, restart!
       if (shouldListenRef.current) {
-          try {
-            recognition.start()
-          } catch (e) {
-            console.error("Failed to restart recognition", e)
-            setIsListening(false)
-          }
+        try {
+          recognition.start()
+        } catch (e) {
+          console.error("Failed to restart recognition", e)
+          setIsListening(false)
+        }
       } else {
         setIsListening(false)
       }
@@ -386,9 +425,9 @@ export function useAssistant() {
     // Helper to ensure voices are loaded
     window.speechSynthesis.getVoices()
     if (window.speechSynthesis.onvoiceschanged !== undefined) {
-        window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices()
+      window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices()
     }
-    
+
     // Auto-speak on load (User Request)
     // Note: This might be blocked by browser autoplay policies if no interaction has occurred.
     const greeting = content.greetings[0]
@@ -397,18 +436,18 @@ export function useAssistant() {
 
     // Auto-start listening
     try {
-        if (window.SpeechRecognition || window.webkitSpeechRecognition) {
-            shouldListenRef.current = true
-            recognitionRef.current?.start()
-            setIsListening(true)
-            setError(null)
-        } else {
-             setError('Browser does not support Speech Recognition.')
-        }
+      if (window.SpeechRecognition || window.webkitSpeechRecognition) {
+        shouldListenRef.current = true
+        recognitionRef.current?.start()
+        setIsListening(true)
+        setError(null)
+      } else {
+        setError('Browser does not support Speech Recognition.')
+      }
     } catch (e) {
-        console.error("Auto-start failed:", e)
+      console.error("Auto-start failed:", e)
     }
-  }, [addMessage, speak])
+  }, [addMessage, speak, content])
 
   const handleSubmit = useCallback(() => {
     if (!inputValue.trim()) return
@@ -423,8 +462,6 @@ export function useAssistant() {
     inputValue,
     setInputValue,
     handleSubmit,
-    handleMicClick,
-    handleClearChat,
     handleMicClick,
     handleClearChat,
     isListening,

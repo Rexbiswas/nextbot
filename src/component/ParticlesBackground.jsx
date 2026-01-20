@@ -21,7 +21,7 @@ const ParticlesBackground = () => {
 
         // Config
         const particleCount = 400
-        const globeRadius = 350
+        const globeRadius = Math.min(350, window.innerWidth < 600 ? window.innerWidth * 0.4 : 350)
         const connectionDistance = 60
         const focalLength = 600
 

@@ -8,11 +8,11 @@ app.use(express.json());
 
 app.post('/command', (req, res) => {
   const { command } = req.body;
-  
+
   if (!command) return res.status(200).send('No command provided');
 
   console.log(`Received command: ${command}`);
-  
+
   exec(`start ${command}`, (error, stdout) => {
     if (error) {
       console.error(`exec error: ${error}`);
@@ -26,20 +26,30 @@ import si from 'systeminformation';
 
 app.get('/stats', async (req, res) => {
   try {
-    const [cpu, mem, net] = await Promise.all([
-      si.currentLoad(),
-      si.mem(),
-      si.networkStats()
+    const timeout = (prom, time, defaultVal) => Promise.race([
+      prom,
+      new Promise(resolve => setTimeout(() => resolve(defaultVal), time))
     ]);
-    
+
+    console.log('Stats requested');
+    const [cpu, mem] = await Promise.all([
+      timeout(si.currentLoad(), 2000, { currentLoad: 0 }),
+      timeout(si.mem(), 2000, { active: 0, total: 1 })
+    ]);
+    console.log('Stats fetched');
+
+    // Mock network stats to prevent hanging on Windows
+    const net = [];
+
     res.json({
-      cpu: Math.round(cpu.currentLoad),
-      ram: Math.round((mem.active / mem.total) * 100),
+      cpu: Math.round(cpu.currentLoad || 0),
+      ram: Math.round((mem.active / mem.total) * 100) || 0,
       net: {
-        rx: Math.round(net[0]?.rx_sec / 1024) || 0, 
-        tx: Math.round(net[0]?.tx_sec / 1024) || 0
+        rx: 0,
+        tx: 0
       }
     });
+    console.log('Stats response sent');
   } catch (error) {
     console.error('Stats error:', error);
     res.status(500).json({ error: 'Failed to fetch stats' });

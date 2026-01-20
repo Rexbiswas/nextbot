@@ -1,8 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Activity, Wifi, Cpu, Cloud, MapPin, Clock as ClockIcon, Eye, Globe } from 'lucide-react'
 import { useLanguage } from '../contexts/LanguageContext'
-import { useAuth } from '../contexts/AuthContext'
-import * as faceapi from 'face-api.js'
+import { motion, AnimatePresence } from 'framer-motion'
 
 // --- Sub-components ---
 
@@ -10,11 +9,14 @@ const LanguagePanel = () => {
     const { currentLang, setCurrentLang } = useLanguage()
     const [isOpen, setIsOpen] = useState(false)
 
-    // Languages list (copied from LanguageContext/UI for consistency)
+    // Languages list
     const languages = ['EN', 'ES', 'FR', 'DE']
 
     return (
-        <div className="bg-black/40 backdrop-blur-md border border-cyan-500/30 p-4 rounded-xl space-y-3 min-w-[200px] relative">
+        <motion.div
+            className="bg-black/40 backdrop-blur-md border border-cyan-500/30 p-4 rounded-xl space-y-3 min-w-[200px] relative pointer-events-auto"
+            whileHover={{ scale: 1.02, borderColor: 'rgba(6, 182, 212, 0.6)' }}
+        >
             <h3 className="text-cyan-400 font-[Orbitron] text-xs tracking-wider border-b border-cyan-500/30 pb-1 mb-2">COMMUNICATION</h3>
 
             <div
@@ -32,23 +34,30 @@ const LanguagePanel = () => {
             </div>
 
             {/* Dropdown for Language Selection */}
-            {isOpen && (
-                <div className="absolute top-full left-0 mt-2 w-full bg-black/90 border border-cyan-500/30 rounded-xl overflow-hidden z-50 shadow-lg shadow-cyan-500/20 backdrop-blur-xl">
-                    {languages.map(lang => (
-                        <div
-                            key={lang}
-                            onClick={() => {
-                                setCurrentLang(lang)
-                                setIsOpen(false)
-                            }}
-                            className={`px-4 py-2 text-sm cursor-pointer hover:bg-cyan-500/20 transition-colors ${currentLang === lang ? 'text-cyan-300 font-bold bg-cyan-500/10' : 'text-gray-400'}`}
-                        >
-                            {lang}
-                        </div>
-                    ))}
-                </div>
-            )}
-        </div>
+            <AnimatePresence>
+                {isOpen && (
+                    <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        className="absolute top-full left-0 mt-2 w-full bg-black/90 border border-cyan-500/30 rounded-xl overflow-hidden z-50 shadow-lg shadow-cyan-500/20 backdrop-blur-xl"
+                    >
+                        {languages.map(lang => (
+                            <div
+                                key={lang}
+                                onClick={() => {
+                                    setCurrentLang(lang)
+                                    setIsOpen(false)
+                                }}
+                                className={`px-4 py-2 text-sm cursor-pointer hover:bg-cyan-500/20 transition-colors ${currentLang === lang ? 'text-cyan-300 font-bold bg-cyan-500/10' : 'text-gray-400'}`}
+                            >
+                                {lang}
+                            </div>
+                        ))}
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </motion.div>
     )
 }
 
@@ -65,7 +74,6 @@ const SystemStats = () => {
                 }
             } catch (e) {
                 // Silent fail or mock
-                // console.error(e)
             }
         }
 
@@ -75,7 +83,10 @@ const SystemStats = () => {
     }, [])
 
     return (
-        <div className="bg-black/40 backdrop-blur-md border border-cyan-500/30 p-4 rounded-xl space-y-3 min-w-[200px]">
+        <motion.div
+            className="bg-black/40 backdrop-blur-md border border-cyan-500/30 p-4 rounded-xl space-y-3 min-w-[200px] pointer-events-auto"
+            whileHover={{ scale: 1.02, borderColor: 'rgba(6, 182, 212, 0.6)' }}
+        >
             <h3 className="text-cyan-400 font-[Orbitron] text-xs tracking-wider border-b border-cyan-500/30 pb-1 mb-2">SYSTEM STATUS</h3>
 
             <div className="flex items-center justify-between text-cyan-100 text-sm">
@@ -103,7 +114,7 @@ const SystemStats = () => {
                     ↓{stats.net.rx} / ↑{stats.net.tx} KB
                 </div>
             </div>
-        </div>
+        </motion.div>
     )
 }
 
@@ -120,7 +131,6 @@ const LocationWeather = () => {
                     const t = Math.round(data.current_weather.temperature)
                     const code = data.current_weather.weathercode
 
-                    // Simple WMO code mapping
                     let cond = 'Clear Sky'
                     if (code > 0 && code <= 3) cond = 'Partly Cloudy'
                     else if (code >= 45 && code <= 48) cond = 'Foggy'
@@ -140,13 +150,15 @@ const LocationWeather = () => {
         }
 
         fetchWeather()
-        // Refresh every 10 mins
         const interval = setInterval(fetchWeather, 600000)
         return () => clearInterval(interval)
     }, [])
 
     return (
-        <div className="bg-black/40 backdrop-blur-md border border-cyan-500/30 p-4 rounded-xl space-y-3 min-w-[200px]">
+        <motion.div
+            className="bg-black/40 backdrop-blur-md border border-cyan-500/30 p-4 rounded-xl space-y-3 min-w-[200px] pointer-events-auto"
+            whileHover={{ scale: 1.02, borderColor: 'rgba(6, 182, 212, 0.6)' }}
+        >
             <h3 className="text-cyan-400 font-[Orbitron] text-xs tracking-wider border-b border-cyan-500/30 pb-1 mb-2">ENVIRONMENT</h3>
 
             <div className="flex items-center gap-3 text-cyan-100">
@@ -161,7 +173,7 @@ const LocationWeather = () => {
                 <MapPin size={12} />
                 <span>{weather.loc}</span>
             </div>
-        </div>
+        </motion.div>
     )
 }
 
@@ -174,7 +186,10 @@ const DigitalClock = () => {
     }, [])
 
     return (
-        <div className="bg-black/40 backdrop-blur-md border border-cyan-500/30 p-4 rounded-xl min-w-[200px] text-right">
+        <motion.div
+            className="bg-black/40 backdrop-blur-md border border-cyan-500/30 p-4 rounded-xl min-w-[200px] text-right pointer-events-auto"
+            whileHover={{ scale: 1.02, borderColor: 'rgba(6, 182, 212, 0.6)' }}
+        >
             <h3 className="text-cyan-400 font-[Orbitron] text-xs tracking-wider border-b border-cyan-500/30 pb-1 mb-2 flex justify-end gap-2">
                 <ClockIcon size={14} /> SYSTEM TIME
             </h3>
@@ -184,14 +199,14 @@ const DigitalClock = () => {
             <div className="text-xs text-cyan-300 mt-1 uppercase tracking-wider">
                 {time.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' })}
             </div>
-        </div>
+        </motion.div>
     )
 }
 
 const VisualInput = () => {
     const videoRef = useRef(null)
     const [active, setActive] = useState(false)
-    const streamRef = useRef(null) // Keep track of stream to stop tracks
+    const streamRef = useRef(null)
 
     const stopCam = () => {
         if (streamRef.current) {
@@ -227,8 +242,6 @@ const VisualInput = () => {
     }
 
     useEffect(() => {
-        // startCam() // Removed auto-start
-
         const handleShutdown = () => stopCam()
         const handleStartup = () => startCam()
 
@@ -243,13 +256,15 @@ const VisualInput = () => {
     }, [])
 
     return (
-        <div className="bg-black/40 backdrop-blur-md border border-cyan-500/30 p-2 rounded-xl min-w-[200px] flex flex-col gap-2">
+        <motion.div
+            className="bg-black/40 backdrop-blur-md border border-cyan-500/30 p-2 rounded-xl min-w-[200px] flex flex-col gap-2 pointer-events-auto"
+            whileHover={{ scale: 1.02, borderColor: 'rgba(6, 182, 212, 0.6)' }}
+        >
             <div className="flex items-center justify-between px-2 pt-1">
                 <h3 className="text-cyan-400 font-[Orbitron] text-xs tracking-wider flex items-center gap-2">
                     <Eye size={14} /> VISUAL INPUT
                 </h3>
 
-                {/* Cam Toggle Button */}
                 <button
                     onClick={toggleCam}
                     className={`p-1 rounded-full transition-colors ${active ? 'bg-red-500/20 text-red-400 hover:bg-red-500/40' : 'bg-gray-700/50 text-gray-400 hover:bg-gray-600'}`}
@@ -268,7 +283,6 @@ const VisualInput = () => {
                     className={`w-full h-full object-cover transition-opacity duration-500 ${active ? 'opacity-80' : 'opacity-0'}`}
                 />
 
-                {/* HUD Overlay Lines on Video (Only Visible when Active) */}
                 {active && (
                     <div className="absolute inset-0 pointer-events-none">
                         <div className="absolute top-2 left-2 w-4 h-4 border-t border-l border-cyan-500/50"></div>
@@ -289,7 +303,7 @@ const VisualInput = () => {
                     </div>
                 )}
             </div>
-        </div>
+        </motion.div>
     )
 }
 
@@ -297,19 +311,29 @@ const VisualInput = () => {
 
 const HUD = () => {
     return (
-        <div className="fixed inset-0 pointer-events-none z-40 p-6 flex justify-between items-start">
+        <div className="fixed inset-0 pointer-events-none z-40 p-2 md:p-6 flex flex-col md:flex-row justify-between items-start md:items-start h-full md:h-auto font-sans">
             {/* Left Panel */}
-            <div className="flex flex-col gap-4 mt-20 md:mt-0 animate-in slide-in-from-left duration-700 fade-in pointer-events-auto">
+            <motion.div
+                initial={{ x: -100, opacity: 0 }}
+                animate={{ x: 0, opacity: 1 }}
+                transition={{ duration: 0.8, ease: "easeOut" }}
+                className="flex flex-col gap-2 md:gap-4 mt-16 md:mt-0 scale-90 md:scale-100 origin-top-left"
+            >
                 <SystemStats />
                 <LocationWeather />
                 <LanguagePanel />
-            </div>
+            </motion.div>
 
             {/* Right Panel */}
-            <div className="flex flex-col gap-4 mt-20 md:mt-0 animate-in slide-in-from-right duration-700 fade-in pointer-events-auto">
+            <motion.div
+                initial={{ x: 100, opacity: 0 }}
+                animate={{ x: 0, opacity: 1 }}
+                transition={{ duration: 0.8, ease: "easeOut", delay: 0.2 }}
+                className="flex flex-col gap-2 md:gap-4 mb-20 md:mb-0 md:mt-0 scale-90 md:scale-100 origin-bottom-left md:origin-top-right items-end md:items-end w-full md:w-auto absolute bottom-4 right-2 md:static"
+            >
                 <DigitalClock />
                 <VisualInput />
-            </div>
+            </motion.div>
         </div>
     )
 }
