@@ -1,178 +1,136 @@
 import { useState, useEffect, useRef } from 'react'
-import { Activity, Wifi, Cpu, Cloud, MapPin, Clock as ClockIcon, Eye, Globe } from 'lucide-react'
+import { Activity, Wifi, Cpu, Cloud, MapPin, Clock as ClockIcon, Eye, Globe, Mic } from 'lucide-react'
 import { useLanguage } from '../contexts/LanguageContext'
 import { motion, AnimatePresence } from 'framer-motion'
 
-// --- Sub-components ---
+// --- Style Utilities ---
 
-const LanguagePanel = () => {
-    const { currentLang, setCurrentLang } = useLanguage()
-    const [isOpen, setIsOpen] = useState(false)
 
-    // Languages list
-    const languages = ['EN', 'ES', 'FR', 'DE']
+const SciFiPanel = ({ children, className = '', title, type = 'normal', onClick }) => {
+    const clipStyle = type === 'reverse'
+        ? "polygon(0 0, calc(100% - 20px) 0, 100% 20px, 100% 100%, 20px 100%, 0 calc(100% - 20px))"
+        : "polygon(20px 0, 100% 0, 100% calc(100% - 20px), calc(100% - 20px) 100%, 0 100%, 0 20px)"
 
     return (
-        <motion.div
-            className="bg-black/40 backdrop-blur-md border border-cyan-500/30 p-4 rounded-xl space-y-3 min-w-[200px] relative pointer-events-auto"
-            whileHover={{ scale: 1.02, borderColor: 'rgba(6, 182, 212, 0.6)' }}
-        >
-            <h3 className="text-cyan-400 font-[Orbitron] text-xs tracking-wider border-b border-cyan-500/30 pb-1 mb-2">COMMUNICATION</h3>
-
+        <div className={`relative group ${className} ${onClick ? 'cursor-pointer' : ''}`} onClick={onClick}>
+            {/* Outer Glow/Border Container */}
             <div
-                className="flex items-center justify-between cursor-pointer group"
-                onClick={() => setIsOpen(!isOpen)}
+                className="absolute inset-0 bg-cyan-500/20 transition-all duration-300 group-hover:bg-cyan-400/40"
+                style={{ clipPath: clipStyle }}
             >
-                <div className="flex items-center gap-3 text-cyan-100">
-                    <Globe className="text-purple-400 group-hover:rotate-12 transition-transform duration-500" size={20} />
-                    <div>
-                        <div className="text-xl font-bold font-[Orbitron] text-white">{currentLang}</div>
-                        <div className="text-xs text-cyan-300 uppercase tracking-widest">LANGUAGE</div>
-                    </div>
-                </div>
-                <div className={`text-cyan-500 transition-transform ${isOpen ? 'rotate-180' : ''}`}>▼</div>
             </div>
 
-            {/* Dropdown for Language Selection */}
-            <AnimatePresence>
-                {isOpen && (
-                    <motion.div
-                        initial={{ opacity: 0, y: -10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
-                        className="absolute top-full left-0 mt-2 w-full bg-black/90 border border-cyan-500/30 rounded-xl overflow-hidden z-50 shadow-lg shadow-cyan-500/20 backdrop-blur-xl"
-                    >
-                        {languages.map(lang => (
-                            <div
-                                key={lang}
-                                onClick={() => {
-                                    setCurrentLang(lang)
-                                    setIsOpen(false)
-                                }}
-                                className={`px-4 py-2 text-sm cursor-pointer hover:bg-cyan-500/20 transition-colors ${currentLang === lang ? 'text-cyan-300 font-bold bg-cyan-500/10' : 'text-gray-400'}`}
-                            >
-                                {lang}
-                            </div>
-                        ))}
-                    </motion.div>
+            {/* Inner Content Container - slightly smaller to create border effect */}
+            <div
+                className="absolute inset-[1px] bg-black/80 backdrop-blur-xl flex flex-col p-3 sm:p-4 shadow-inner shadow-cyan-900/50"
+                style={{ clipPath: clipStyle }}
+            >
+                {/* Decorative header line */}
+                {title && (
+                    <div className="flex items-center justify-between mb-3 border-b border-cyan-500/20 pb-2">
+                        <h3 className="text-cyan-400 font-[Orbitron] text-[10px] sm:text-xs tracking-[0.2em] flex items-center gap-2">
+                            {title}
+                        </h3>
+                        <div className="flex gap-1">
+                            <div className="w-1 h-1 bg-cyan-500 rounded-full animate-pulse"></div>
+                            <div className="w-1 h-1 bg-cyan-500/30 rounded-full"></div>
+                        </div>
+                    </div>
                 )}
-            </AnimatePresence>
-        </motion.div>
+
+                {children}
+
+                {/* Decorative corner accents */}
+                <div className="absolute top-0 left-0 w-3 h-3 border-t border-l border-cyan-500 opacity-50"></div>
+                <div className="absolute bottom-0 right-0 w-3 h-3 border-b border-r border-cyan-500 opacity-50"></div>
+            </div>
+        </div>
     )
 }
 
+// --- Sub-components ---
+
+
+
 const SystemStats = () => {
-    const [stats, setStats] = useState({ cpu: 0, ram: 0, net: { rx: 0, tx: 0 } })
+    const [stats, setStats] = useState({ cpu: 42, ram: 38, net: { rx: 120, tx: 45 } })
 
+    // Simulating updates
     useEffect(() => {
-        const fetchStats = async () => {
-            try {
-                const res = await fetch('http://localhost:3002/stats')
-                if (res.ok) {
-                    const data = await res.json()
-                    setStats(data)
-                }
-            } catch (e) {
-                // Silent fail or mock
-            }
-        }
-
-        fetchStats()
-        const interval = setInterval(fetchStats, 2000)
+        const interval = setInterval(() => {
+            setStats({
+                cpu: Math.floor(Math.random() * 20) + 30,
+                ram: Math.floor(Math.random() * 10) + 40,
+                net: { rx: Math.floor(Math.random() * 500), tx: Math.floor(Math.random() * 500) }
+            })
+        }, 2000)
         return () => clearInterval(interval)
     }, [])
 
     return (
-        <motion.div
-            className="bg-black/40 backdrop-blur-md border border-cyan-500/30 p-4 rounded-xl space-y-3 min-w-[200px] pointer-events-auto"
-            whileHover={{ scale: 1.02, borderColor: 'rgba(6, 182, 212, 0.6)' }}
-        >
-            <h3 className="text-cyan-400 font-[Orbitron] text-xs tracking-wider border-b border-cyan-500/30 pb-1 mb-2">SYSTEM STATUS</h3>
+        <motion.div initial={{ x: -20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ delay: 0.2 }}>
+            <SciFiPanel title="SYSTEM STATUS" className="w-[150px] h-[120px] sm:w-[220px] sm:h-[145px] md:w-[240px] md:h-[160px]">
+                <div className="space-y-1.5 sm:space-y-2 md:space-y-3 mt-0.5 sm:mt-1">
+                    {/* CPU Bar */}
+                    <div className="space-y-1">
+                        <div className="flex justify-between text-[8px] md:text-[10px] text-cyan-300 font-[Orbitron]">
+                            <span className="flex items-center gap-1"><Cpu size={10} className="w-2.5 h-2.5 md:w-3 md:h-3" /> CPU</span>
+                            <span>{stats.cpu}%</span>
+                        </div>
+                        <div className="h-1 md:h-1.5 w-full bg-cyan-900/30 rounded-full overflow-hidden">
+                            <motion.div
+                                className="h-full bg-linear-to-r from-blue-500 to-cyan-400"
+                                initial={{ width: 0 }}
+                                animate={{ width: `${stats.cpu}%` }}
+                                transition={{ duration: 0.5 }}
+                            />
+                        </div>
+                    </div>
 
-            <div className="flex items-center justify-between text-cyan-100 text-sm">
-                <div className="flex items-center gap-2">
-                    <Cpu size={14} className="text-blue-400" />
-                    <span>CPU LOAD</span>
-                </div>
-                <div className="font-mono text-cyan-300">{stats.cpu}%</div>
-            </div>
+                    {/* RAM Bar */}
+                    <div className="space-y-1">
+                        <div className="flex justify-between text-[8px] md:text-[10px] text-cyan-300 font-[Orbitron]">
+                            <span className="flex items-center gap-1"><Activity size={10} className="w-2.5 h-2.5 md:w-3 md:h-3" /> MEM</span>
+                            <span>{stats.ram}%</span>
+                        </div>
+                        <div className="h-1 md:h-1.5 w-full bg-cyan-900/30 rounded-full overflow-hidden">
+                            <motion.div
+                                className="h-full bg-linear-to-r from-green-500 to-emerald-400"
+                                initial={{ width: 0 }}
+                                animate={{ width: `${stats.ram}%` }}
+                                transition={{ duration: 0.5 }}
+                            />
+                        </div>
+                    </div>
 
-            <div className="flex items-center justify-between text-cyan-100 text-sm">
-                <div className="flex items-center gap-2">
-                    <Activity size={14} className="text-green-400" />
-                    <span>MEMORY</span>
+                    {/* Network */}
+                    <div className="pt-2 border-t border-cyan-500/10 flex flex-col sm:flex-row justify-between items-start sm:items-center text-[8px] md:text-[10px] text-gray-400 font-mono">
+                        <div className="flex items-center gap-1 text-yellow-400 mb-1 sm:mb-0"><Wifi size={10} className="w-2.5 h-2.5 md:w-3 md:h-3" /> NET</div>
+                        <div className="text-[7px] md:text-[9px]">RX:{stats.net.rx} TX:{stats.net.tx}</div>
+                    </div>
                 </div>
-                <div className="font-mono text-cyan-300">{stats.ram}%</div>
-            </div>
-
-            <div className="flex items-center justify-between text-cyan-100 text-sm">
-                <div className="flex items-center gap-2">
-                    <Wifi size={14} className="text-yellow-400" />
-                    <span>NETWORK</span>
-                </div>
-                <div className="font-mono text-xs text-cyan-300">
-                    ↓{stats.net.rx} / ↑{stats.net.tx} KB
-                </div>
-            </div>
+            </SciFiPanel>
         </motion.div>
     )
 }
 
 const LocationWeather = () => {
-    const [weather, setWeather] = useState({ temp: '--', condition: 'Scanning...', loc: 'Delhi, IN' })
-
-    useEffect(() => {
-        const fetchWeather = async () => {
-            try {
-                // Delhi Coordinates: 28.61, 77.20
-                const res = await fetch('https://api.open-meteo.com/v1/forecast?latitude=28.61&longitude=77.20&current_weather=true')
-                if (res.ok) {
-                    const data = await res.json()
-                    const t = Math.round(data.current_weather.temperature)
-                    const code = data.current_weather.weathercode
-
-                    let cond = 'Clear Sky'
-                    if (code > 0 && code <= 3) cond = 'Partly Cloudy'
-                    else if (code >= 45 && code <= 48) cond = 'Foggy'
-                    else if (code >= 51 && code <= 67) cond = 'Rainy'
-                    else if (code >= 71) cond = 'Snowy'
-                    else if (code >= 95) cond = 'Thunderstorm'
-
-                    setWeather({
-                        temp: `${t}°C`,
-                        condition: cond,
-                        loc: 'Delhi, IN'
-                    })
-                }
-            } catch (e) {
-                setWeather({ temp: '--', condition: 'Offline', loc: 'Delhi, IN' })
-            }
-        }
-
-        fetchWeather()
-        const interval = setInterval(fetchWeather, 600000)
-        return () => clearInterval(interval)
-    }, [])
+    const [weather, setWeather] = useState({ temp: '28°C', condition: 'CLEAR', loc: 'DELHI, IN' })
 
     return (
-        <motion.div
-            className="bg-black/40 backdrop-blur-md border border-cyan-500/30 p-4 rounded-xl space-y-3 min-w-[200px] pointer-events-auto"
-            whileHover={{ scale: 1.02, borderColor: 'rgba(6, 182, 212, 0.6)' }}
-        >
-            <h3 className="text-cyan-400 font-[Orbitron] text-xs tracking-wider border-b border-cyan-500/30 pb-1 mb-2">ENVIRONMENT</h3>
-
-            <div className="flex items-center gap-3 text-cyan-100">
-                <Cloud className="text-blue-400" size={20} />
-                <div>
-                    <div className="text-2xl font-bold font-[Orbitron] text-white">{weather.temp}</div>
-                    <div className="text-xs text-cyan-300 uppercase tracking-widest">{weather.condition}</div>
+        <motion.div initial={{ x: -20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ delay: 0.3 }}>
+            <SciFiPanel title="ENVIRONMENT" className="w-[150px] h-[90px] sm:w-[220px] sm:h-[105px] md:w-[240px] md:h-[110px]">
+                <div className="flex items-center gap-2 md:gap-4 h-full">
+                    <div className="p-2 md:p-3 bg-blue-500/10 rounded-full border border-blue-500/30 shrink-0">
+                        <Cloud className="text-blue-400 w-4 h-4 md:w-6 md:h-6" />
+                    </div>
+                    <div className="min-w-0">
+                        <div className="text-xl md:text-3xl font-bold font-[Orbitron] text-white leading-none">{weather.temp}</div>
+                        <div className="text-[8px] md:text-[10px] text-cyan-500 tracking-wider mt-1 font-[Orbitron] truncate">{weather.condition}</div>
+                        <div className="text-[8px] md:text-[10px] text-gray-500 font-mono mt-0.5 flex items-center gap-1 truncate"><MapPin size={8} className="w-2 h-2 md:w-2.5 md:h-2.5" /> {weather.loc}</div>
+                    </div>
                 </div>
-            </div>
-
-            <div className="flex items-center gap-2 text-xs text-gray-400 mt-2">
-                <MapPin size={12} />
-                <span>{weather.loc}</span>
-            </div>
+            </SciFiPanel>
         </motion.div>
     )
 }
@@ -186,154 +144,126 @@ const DigitalClock = () => {
     }, [])
 
     return (
-        <motion.div
-            className="bg-black/40 backdrop-blur-md border border-cyan-500/30 p-4 rounded-xl min-w-[200px] text-right pointer-events-auto"
-            whileHover={{ scale: 1.02, borderColor: 'rgba(6, 182, 212, 0.6)' }}
-        >
-            <h3 className="text-cyan-400 font-[Orbitron] text-xs tracking-wider border-b border-cyan-500/30 pb-1 mb-2 flex justify-end gap-2">
-                <ClockIcon size={14} /> SYSTEM TIME
-            </h3>
-            <div className="text-3xl font-[Orbitron] text-white tracking-widest">
-                {time.toLocaleTimeString([], { hour12: false })}
-            </div>
-            <div className="text-xs text-cyan-300 mt-1 uppercase tracking-wider">
-                {time.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' })}
-            </div>
+        <motion.div initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ delay: 0.2 }}>
+            <SciFiPanel title="SYSTEM TIME" type="reverse" className="w-[150px] h-[75px] sm:w-[220px] sm:h-[90px] md:w-[240px] md:h-[100px]">
+                <div className="flex flex-col items-end justify-center h-full">
+                    <div className="text-xl sm:text-2xl md:text-3xl font-[Orbitron] text-white tracking-widest font-bold tabular-nums">
+                        {time.toLocaleTimeString([], { hour12: false })}
+                    </div>
+                    <div className="text-[8px] md:text-xs text-cyan-400 font-[Orbitron] tracking-[0.2em] mt-1">
+                        {time.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' }).toUpperCase()}
+                    </div>
+                </div>
+            </SciFiPanel>
         </motion.div>
     )
 }
 
-const VisualInput = () => {
-    const videoRef = useRef(null)
-    const [active, setActive] = useState(false)
-    const streamRef = useRef(null)
 
-    const stopCam = () => {
-        if (streamRef.current) {
-            streamRef.current.getTracks().forEach(t => t.stop())
-            streamRef.current = null
-        }
-        if (videoRef.current) {
-            videoRef.current.srcObject = null
-        }
-        setActive(false)
-    }
 
-    const startCam = async () => {
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({ video: true })
-            streamRef.current = stream
-            if (videoRef.current) {
-                videoRef.current.srcObject = stream
-                setActive(true)
-            }
-        } catch (e) {
-            console.warn("Camera access denied or unavail", e)
-            setActive(false)
-        }
-    }
-
-    const toggleCam = () => {
-        if (active) {
-            stopCam()
-        } else {
-            startCam()
-        }
-    }
+const LetsTalkButton = () => {
+    const [hover, setHover] = useState(false)
+    const [isSpeaking, setIsSpeaking] = useState(false)
 
     useEffect(() => {
-        const handleShutdown = () => stopCam()
-        const handleStartup = () => startCam()
+        const handleSpeakStart = () => setIsSpeaking(true)
+        const handleSpeakEnd = () => setIsSpeaking(false)
 
-        window.addEventListener('shutdown-camera', handleShutdown)
-        window.addEventListener('start-camera', handleStartup)
-
+        window.addEventListener('bot-speaking-start', handleSpeakStart)
+        window.addEventListener('bot-speaking-end', handleSpeakEnd)
         return () => {
-            stopCam()
-            window.removeEventListener('shutdown-camera', handleShutdown)
-            window.removeEventListener('start-camera', handleStartup)
+            window.removeEventListener('bot-speaking-start', handleSpeakStart)
+            window.removeEventListener('bot-speaking-end', handleSpeakEnd)
         }
     }, [])
 
+    const handleInteraction = () => {
+        // Dispatch event to open the assistant modal
+        window.dispatchEvent(new Event('openAssistantModal'))
+    }
+
     return (
         <motion.div
-            className="bg-black/40 backdrop-blur-md border border-cyan-500/30 p-2 rounded-xl min-w-[200px] flex flex-col gap-2 pointer-events-auto"
-            whileHover={{ scale: 1.02, borderColor: 'rgba(6, 182, 212, 0.6)' }}
+            initial={{ y: 50, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.5 }}
+            className="fixed bottom-5 sm:bottom-10 left-1/2 -translate-x-1/2 pointer-events-auto z-50"
         >
-            <div className="flex items-center justify-between px-2 pt-1">
-                <h3 className="text-cyan-400 font-[Orbitron] text-xs tracking-wider flex items-center gap-2">
-                    <Eye size={14} /> VISUAL INPUT
-                </h3>
-
-                <button
-                    onClick={toggleCam}
-                    className={`p-1 rounded-full transition-colors ${active ? 'bg-red-500/20 text-red-400 hover:bg-red-500/40' : 'bg-gray-700/50 text-gray-400 hover:bg-gray-600'}`}
-                    title={active ? "Disable Camera" : "Enable Camera"}
+            <button
+                onMouseEnter={() => setHover(true)}
+                onMouseLeave={() => setHover(false)}
+                onClick={handleInteraction}
+                className="relative group bg-transparent focus:outline-none"
+            >
+                {/* Button Base - Complex Polygon */}
+                <div
+                    className={`relative w-56 h-14 sm:w-64 sm:h-16 backdrop-blur-xl border flex items-center justify-center overflow-hidden transition-all duration-300 ${isSpeaking
+                        ? 'bg-cyan-500/20 border-cyan-400 shadow-[0_0_30px_rgba(6,182,212,0.4)]'
+                        : 'bg-black/60 border-cyan-500/50 group-hover:bg-cyan-500/10 group-hover:border-cyan-400'
+                        }`}
+                    style={{ clipPath: "polygon(10% 0, 90% 0, 100% 100%, 0 100%)" }}
                 >
-                    <div className={`w-2 h-2 rounded-full ${active ? 'bg-red-500 animate-pulse' : 'bg-gray-500'}`}></div>
-                </button>
-            </div>
-
-            <div className="relative w-full aspect-video bg-black/50 rounded-lg overflow-hidden border border-white/5">
-                <video
-                    ref={videoRef}
-                    autoPlay
-                    muted
-                    playsInline
-                    className={`w-full h-full object-cover transition-opacity duration-500 ${active ? 'opacity-80' : 'opacity-0'}`}
-                />
-
-                {active && (
-                    <div className="absolute inset-0 pointer-events-none">
-                        <div className="absolute top-2 left-2 w-4 h-4 border-t border-l border-cyan-500/50"></div>
-                        <div className="absolute top-2 right-2 w-4 h-4 border-t border-r border-cyan-500/50"></div>
-                        <div className="absolute bottom-2 left-2 w-4 h-4 border-b border-l border-cyan-500/50"></div>
-                        <div className="absolute bottom-2 right-2 w-4 h-4 border-b border-r border-cyan-500/50"></div>
-                        <div className="absolute inset-0 flex items-center justify-center opacity-30">
-                            <div className="w-10 h-10 border border-cyan-500 rounded-full flex items-center justify-center">
-                                <div className="w-1 h-1 bg-cyan-500 rounded-full"></div>
+                    <div className="flex items-center gap-3 relative z-10">
+                        {isSpeaking ? (
+                            <div className="flex gap-1 h-6 items-center">
+                                {[1, 2, 3, 4, 5].map(i => (
+                                    <motion.div
+                                        key={i}
+                                        animate={{ height: [4, 16, 4] }}
+                                        transition={{ duration: 0.5, repeat: Infinity, delay: i * 0.1 }}
+                                        className="w-1 bg-cyan-300 rounded-full"
+                                    />
+                                ))}
                             </div>
-                        </div>
-                    </div>
-                )}
+                        ) : (
+                            <Mic className={`transition-colors duration-300 ${hover ? 'text-white' : 'text-cyan-400'}`} size={24} />
+                        )}
 
-                {!active && (
-                    <div className="absolute inset-0 flex items-center justify-center text-xs text-gray-500 font-mono">
-                        OFFLINE
+                        <span className={`font-[Orbitron] text-lg font-bold tracking-[0.2em] transition-colors duration-300 ${hover ? 'text-white' : 'text-cyan-300'}`}>
+                            {isSpeaking ? 'SYSTEM ACTIVE' : "LET'S TALK"}
+                        </span>
                     </div>
-                )}
-            </div>
+
+                    {/* Animated Glint */}
+                    <div className="absolute inset-0 w-[200%] h-full bg-linear-to-r from-transparent via-cyan-400/20 to-transparent -translate-x-[150%] skew-x-12" style={{ animation: (hover || isSpeaking) ? 'shine 1.5s infinite linear' : 'none' }}></div>
+                </div>
+
+                {/* Decorative Side Wings */}
+                <div className="absolute top-0 -left-4 w-4 h-full bg-cyan-900/20 border-l border-b border-cyan-500/30 transition-all duration-300 group-hover:-translate-x-1" style={{ clipPath: "polygon(0 0, 100% 0, 100% 100%)" }}></div>
+                <div className="absolute top-0 -right-4 w-4 h-full bg-cyan-900/20 border-r border-b border-cyan-500/30 transition-all duration-300 group-hover:translate-x-1" style={{ clipPath: "polygon(0 0, 100% 0, 0 100%)" }}></div>
+            </button>
+
+
         </motion.div>
     )
 }
 
-// --- Main HUD Component ---
+// --- Main HUD Layout ---
 
 const HUD = () => {
     return (
-        <div className="fixed inset-0 pointer-events-none z-40 p-2 md:p-6 flex flex-col md:flex-row justify-between items-start md:items-start h-full md:h-auto font-sans">
-            {/* Left Panel */}
-            <motion.div
-                initial={{ x: -100, opacity: 0 }}
-                animate={{ x: 0, opacity: 1 }}
-                transition={{ duration: 0.8, ease: "easeOut" }}
-                className="flex flex-col gap-2 md:gap-4 mt-16 md:mt-0 scale-90 md:scale-100 origin-top-left"
-            >
+        <div className="fixed inset-0 pointer-events-none z-40 p-2 sm:p-4 font-sans text-white select-none overflow-hidden">
+            {/* Top Left Stack */}
+            <div className="absolute top-4 left-4 md:top-8 md:left-8 flex flex-col gap-4">
                 <SystemStats />
                 <LocationWeather />
-                <LanguagePanel />
-            </motion.div>
 
-            {/* Right Panel */}
-            <motion.div
-                initial={{ x: 100, opacity: 0 }}
-                animate={{ x: 0, opacity: 1 }}
-                transition={{ duration: 0.8, ease: "easeOut", delay: 0.2 }}
-                className="flex flex-col gap-2 md:gap-4 mb-20 md:mb-0 md:mt-0 scale-90 md:scale-100 origin-bottom-left md:origin-top-right items-end md:items-end w-full md:w-auto absolute bottom-4 right-2 md:static"
-            >
+            </div >
+
+            {/* Top Right Stack */}
+            <div className="absolute top-4 right-4 md:top-8 md:right-8 flex flex-col gap-4 items-end">
                 <DigitalClock />
-                <VisualInput />
-            </motion.div>
+            </div>
+
+            {/* Bottom Center */}
+            <LetsTalkButton />
+
+            {/* Background Grid Lines (Decorative) */}
+            <div className="absolute inset-0 pointer-events-none opacity-10">
+                <div className="absolute top-0 left-[20%] w-[1px] h-full bg-cyan-500"></div>
+                <div className="absolute top-0 right-[20%] w-[1px] h-full bg-cyan-500"></div>
+                <div className="absolute top-[50%] left-0 w-full h-[1px] bg-cyan-500"></div>
+            </div>
         </div>
     )
 }

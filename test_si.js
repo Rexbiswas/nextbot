@@ -1,4 +1,4 @@
-import si from 'systeminformation';
+const si = require('systeminformation');
 
 console.log('Testing systeminformation...');
 
@@ -12,9 +12,9 @@ async function test() {
         const mem = await si.mem();
         console.log('Mem:', mem.active);
 
-        // console.log('Fetching network...');
-        // const net = await si.networkStats();
-        // console.log('Net:', net ? net.length : 0);
+        console.log('Fetching network...');
+        const net = await si.networkStats();
+        console.log('Net:', net ? net.length : 0);
 
         console.log('Done.');
     } catch (e) {

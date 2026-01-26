@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { motion } from 'framer-motion'
 
 function Navbar() {
@@ -21,20 +20,6 @@ function Navbar() {
           <div className="w-10"></div>
         </div>
       </motion.nav>
-      <main>
-        <motion.button
-          initial={{ scale: 0, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ delay: 1, type: "spring", stiffness: 200, damping: 20 }}
-          whileHover={{ scale: 1.1, boxShadow: "0 0 30px rgba(6,182,212,0.6)" }}
-          whileTap={{ scale: 0.95 }}
-          onClick={() => window.dispatchEvent(new CustomEvent('openAssistantModal'))}
-          className="absolute z-50 bottom-5 right-5 px-8 py-3 rounded-full border border-cyan-500/20 bg-cyan-500/20 backdrop-blur-md text-white group shadow-[0_0_20px_rgba(6,182,212,0.4)] overflow-hidden font-[Orbitron] tracking-wider"
-        >
-          <span className="relative z-10">Let's Talk</span>
-          <div className="absolute inset-0 bg-cyan-500/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
-        </motion.button>
-      </main>
     </>
   )
 }

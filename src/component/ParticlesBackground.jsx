@@ -1,165 +1,176 @@
-import { useEffect, useRef } from 'react'
+import React, { useRef, useMemo, useEffect, useState } from 'react'
+import * as THREE from 'three'
+import { Canvas, useFrame } from '@react-three/fiber'
+import { OrbitControls } from '@react-three/drei'
 
-const ParticlesBackground = () => {
-    const canvasRef = useRef(null)
+// Particle Sphere Component
+const ParticleSphere = () => {
+    const pointsRef = useRef()
+    const [isSpeaking, setIsSpeaking] = useState(false)
+    const [targetScale, setTargetScale] = useState(1)
 
+    // Listen to speaking events
     useEffect(() => {
-        const canvas = canvasRef.current
-        if (!canvas) return
-
-        const ctx = canvas.getContext('2d')
-        let animationFrameId
-        let rotation = 0
-
-
-        const handleResize = () => {
-            canvas.width = window.innerWidth
-            canvas.height = window.innerHeight
+        const handleSpeakStart = () => {
+            setIsSpeaking(true)
+            setTargetScale(1.1)
         }
-        handleResize()
-        window.addEventListener('resize', handleResize)
-
-        // Config
-        const particleCount = 400
-        const globeRadius = Math.min(350, window.innerWidth < 600 ? window.innerWidth * 0.4 : 350)
-        const connectionDistance = 60
-        const focalLength = 600
-
-
-        const particles = []
-
-
-        const phi = Math.PI * (3 - Math.sqrt(5))
-
-        for (let i = 0; i < particleCount; i++) {
-            const y = 1 - (i / (particleCount - 1)) * 2
-            const radius = Math.sqrt(1 - y * y)
-            const theta = phi * i
-
-            const x = Math.cos(theta) * radius
-            const z = Math.sin(theta) * radius
-
-            particles.push({
-                x: x * globeRadius,
-                y: y * globeRadius,
-                z: z * globeRadius,
-                initialX: x * globeRadius,
-                initialY: y * globeRadius,
-                initialZ: z * globeRadius
-            })
+        const handleSpeakEnd = () => {
+            setIsSpeaking(false)
+            setTargetScale(1)
         }
-
-        // Mouse State
-        let mouseX = 0
-        let mouseY = 0
-        let targetRotationX = 0
-        let targetRotationY = 0
-
-        const handleMouseMove = (e) => {
-            mouseX = (e.clientX / window.innerWidth) * 2 - 1
-            mouseY = (e.clientY / window.innerHeight) * 2 - 1
-        }
-        window.addEventListener('mousemove', handleMouseMove)
-
-        // State for visualization
-        let isSpeaking = false
-        const handleSpeakStart = () => { isSpeaking = true }
-        const handleSpeakEnd = () => { isSpeaking = false }
 
         window.addEventListener('bot-speaking-start', handleSpeakStart)
         window.addEventListener('bot-speaking-end', handleSpeakEnd)
-
-        let currentRotationY = 0
-        let currentTiltX = 0.2
-
-        const renderLoop = () => {
-            ctx.clearRect(0, 0, canvas.width, canvas.height)
-            const centerX = canvas.width / 2
-            const centerY = canvas.height / 2
-
-            // Logic overrides
-            const baseSpeed = isSpeaking ? 0.015 : 0.002
-
-            // Interpolate values
-            currentRotationY += baseSpeed + (mouseX * 0.01)
-            const targetTilt = mouseY * 1.5
-            currentTiltX += (targetTilt - currentTiltX) * 0.05
-
-            const projectedParticles = []
-
-            for (let i = 0; i < particles.length; i++) {
-                const p = particles[i]
-
-                const rotY_X = p.initialX * Math.cos(currentRotationY) - p.initialZ * Math.sin(currentRotationY)
-                const rotY_Z = p.initialX * Math.sin(currentRotationY) + p.initialZ * Math.cos(currentRotationY)
-                const rotX_Y = p.initialY * Math.cos(currentTiltX) - rotY_Z * Math.sin(currentTiltX)
-                const rotX_Z = p.initialY * Math.sin(currentTiltX) + rotY_Z * Math.cos(currentTiltX)
-                const scale = focalLength / (focalLength + rotX_Z + 200)
-                const x2d = rotY_X * scale + centerX
-                const y2d = rotX_Y * scale + centerY
-
-                projectedParticles.push({ x: x2d, y: y2d, z: rotX_Z, scale })
-
-                const alpha = Math.max(0.1, (scale - 0.5) * 1.5)
-                // Color shift: Cyan normally, brighter when speaking
-                const color = isSpeaking ? `rgba(100, 255, 255, ${alpha})` : `rgba(6, 182, 212, ${alpha})`
-
-                ctx.fillStyle = color
-                ctx.beginPath()
-                ctx.arc(x2d, y2d, (isSpeaking ? 2 : 1.5) * scale, 0, Math.PI * 2)
-                ctx.fill()
-            }
-
-            ctx.lineWidth = isSpeaking ? 1 : 0.5
-            for (let i = 0; i < projectedParticles.length; i++) {
-                const p1 = projectedParticles[i]
-                const checkLimit = Math.min(projectedParticles.length, i + 30)
-
-                for (let j = i + 1; j < checkLimit; j++) {
-                    const p2 = projectedParticles[j]
-                    const dx = p1.x - p2.x
-                    const dy = p1.y - p2.y
-                    const dist = Math.sqrt(dx * dx + dy * dy)
-
-                    if (dist < connectionDistance * p1.scale) {
-                        const alpha = Math.min(1, (1 - dist / (connectionDistance * p1.scale))) * 0.3 * p1.scale
-                        if (alpha > 0.05) {
-                            ctx.strokeStyle = isSpeaking ? `rgba(100, 255, 255, ${alpha})` : `rgba(6, 182, 212, ${alpha})`
-                            ctx.beginPath()
-                            ctx.moveTo(p1.x, p1.y)
-                            ctx.lineTo(p2.x, p2.y)
-                            ctx.stroke()
-                        }
-                    }
-                }
-            }
-            animationFrameId = requestAnimationFrame(renderLoop)
-        }
-        renderLoop()
-
         return () => {
-            window.removeEventListener('resize', handleResize)
-            window.removeEventListener('mousemove', handleMouseMove)
             window.removeEventListener('bot-speaking-start', handleSpeakStart)
             window.removeEventListener('bot-speaking-end', handleSpeakEnd)
-            cancelAnimationFrame(animationFrameId)
         }
     }, [])
 
+    // Generate points on a sphere
+    const count = 2000
+    const particlesPosition = useMemo(() => {
+        const temp = new Float32Array(count * 3)
+        const phi = Math.PI * (3 - Math.sqrt(5))
+        const radius = 2.5
+
+        for (let i = 0; i < count; i++) {
+            const y = 1 - (i / (count - 1)) * 2
+            const r = Math.sqrt(1 - y * y)
+            const theta = phi * i
+
+            const x = Math.cos(theta) * r
+            const z = Math.sin(theta) * r
+
+            temp[i * 3] = x * radius
+            temp[i * 3 + 1] = y * radius
+            temp[i * 3 + 2] = z * radius
+        }
+        return temp
+    }, [])
+
+    useFrame((state) => {
+        if (!pointsRef.current) return
+
+        const { clock, pointer, camera } = state
+        const time = clock.getElapsedTime()
+
+        // Rotate
+        const speed = isSpeaking ? 0.2 : 0.05
+        pointsRef.current.rotation.y += speed * 0.01
+
+        // Pulse (Scale)
+        pointsRef.current.scale.x += (targetScale - pointsRef.current.scale.x) * 0.1
+        pointsRef.current.scale.y += (targetScale - pointsRef.current.scale.y) * 0.1
+        pointsRef.current.scale.z += (targetScale - pointsRef.current.scale.z) * 0.1
+
+        // Mouse Interaction
+        // Convert pointer (screen space) to 3D ray
+        // This is a simplified "screen plane" interaction for performance
+        const positions = pointsRef.current.geometry.attributes.position.array
+
+        // We need a vector to calculate cursor position in world space
+        // We project the mouse vector to z=0 plane roughly
+        const cursor = new THREE.Vector3(pointer.x * 5, pointer.y * 5, 0)
+
+        // Get the mesh's world rotation to counteract it for local checks if needed,
+        // but simple distance check on raw positions works well enough for "chaos" effect.
+
+        for (let i = 0; i < count; i++) {
+            const i3 = i * 3
+
+            // Original Positions
+            const ox = particlesPosition[i3]
+            const oy = particlesPosition[i3 + 1]
+            const oz = particlesPosition[i3 + 2]
+
+            // Current Positions
+            let px = positions[i3]
+            let py = positions[i3 + 1]
+            let pz = positions[i3 + 2]
+
+            // Vector from particle to cursor (approximate)
+            // Since the sphere rotates, "local" x/y/z aren't world aligned.
+            // But let's add a "turbulence" effect near the mouse.
+
+            // Just noise movement
+            // px = ox + Math.sin(time + ox * 10) * 0.05
+
+            // Interactive Repulsion/Attraction
+            // To do this cheaply without raycasting every point: 
+            // We just use the 'pointer' values directly as a "localized disturbance"
+            // We can treat the sphere as if it's static for the interaction check to simplify math
+
+            const dx = (pointer.x * 4) - ox
+            const dy = (pointer.y * 4) - oy
+            const dist = Math.sqrt(dx * dx + dy * dy)
+
+            if (dist < 1.0) {
+                // Repel
+                const force = (1.0 - dist) * 2 // Strength
+                const angle = Math.atan2(dy, dx)
+
+                // Push away from mouse
+                const tx = ox - Math.cos(angle) * force
+                const ty = oy - Math.sin(angle) * force
+
+                // Interpolate current pos to target pos
+                px += (tx - px) * 0.1
+                py += (ty - py) * 0.1
+            } else {
+                // Return to original with some sine wave drift
+                const drift = Math.sin(time + i) * 0.02
+                px += (ox + drift - px) * 0.1
+                py += (oy + drift - py) * 0.1
+                pz += (oz + drift - pz) * 0.1
+            }
+
+            positions[i3] = px
+            positions[i3 + 1] = py
+            positions[i3 + 2] = pz
+        }
+
+        pointsRef.current.geometry.attributes.position.needsUpdate = true
+    })
+
     return (
-        <canvas
-            ref={canvasRef}
-            style={{
-                position: 'fixed',
-                top: 0,
-                left: 0,
-                zIndex: -1,
-                background: 'linear-gradient(to bottom, #1a1a1a 0%, #000000 100%)',
-                height: '100vh',
-                width: '100vw',
-                pointerEvents: 'none',
-            }}
-        />
+        <points ref={pointsRef}>
+            <bufferGeometry>
+                <bufferAttribute
+                    attach="attributes-position"
+                    count={particlesPosition.length / 3}
+                    array={particlesPosition}
+                    itemSize={3}
+                />
+            </bufferGeometry>
+            <pointsMaterial
+                size={0.025}
+                color={isSpeaking ? "#00FFFF" : "#06b6d4"}
+                transparent
+                opacity={0.8}
+                sizeAttenuation={true}
+                depthWrite={false}
+            />
+        </points>
+    )
+}
+
+const ParticlesBackground = () => {
+    return (
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', zIndex: -1, background: '#000000' }}>
+            <Canvas camera={{ position: [0, 0, 6], fov: 45 }} gl={{ antialias: true, alpha: true }}>
+                <ambientLight intensity={0.5} />
+                <ParticleSphere />
+                <OrbitControls
+                    enableZoom={false}
+                    enablePan={false}
+                    enableRotate={true}
+                    autoRotate={true}
+                    autoRotateSpeed={0.5}
+                />
+            </Canvas>
+        </div>
     )
 }
 

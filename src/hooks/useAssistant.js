@@ -1,7 +1,97 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { useLanguage, LANGUAGES } from '../contexts/LanguageContext'
-import { isMobile } from 'react-device-detect'
+import { isMobile, osName, osVersion, browserName, isBrowser, isAndroid, isIOS, isWindows, isMacOs } from 'react-device-detect'
+
+// --- System Detection ---
+const getSystemProfile = () => {
+  return {
+    os: osName || 'Unknown OS',
+    version: osVersion || 'Unknown Version',
+    browser: browserName || 'Unknown Browser',
+    isMobile,
+    isDesktop: !isMobile,
+    platform: isAndroid ? 'Android' : isIOS ? 'iOS' : isWindows ? 'Windows' : isMacOs ? 'macOS' : 'Linux/Other',
+    capabilities: {
+      speechSynthesis: 'speechSynthesis' in window,
+      speechRecognition: 'SpeechRecognition' in window || 'webkitSpeechRecognition' in window,
+      camera: !!navigator.mediaDevices?.getUserMedia,
+      bluetooth: !!navigator.bluetooth
+    }
+  }
+}
+
+// --- AI Service (Mock/Bridge) ---
+const interpretCommandWithAI = async (text, profile) => {
+  const apiKey = import.meta.env.VITE_OPENAI_API_KEY
+
+  // 1. AI Implementation
+  if (apiKey) {
+    try {
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+          model: "gpt-3.5-turbo",
+          messages: [
+            {
+              role: "system",
+              content: `You are NextBot, a specialized system assistant. 
+              System Profile: ${JSON.stringify(profile)}.
+              Determine the user's INTENT from the following categories:
+              - OPEN_APP (params: appName)
+              - SYSTEM_CONTROL (params: action, target)
+              - SEARCH (params: query)
+              - REMINDER (params: text, timeInMs)
+              - CHAT (params: response)
+              
+              Rules:
+              - If Mobile: support opening [whatsapp, instagram, maps, camera, settings].
+              - If Desktop: support [notepad, excel, word, terminal, settings].
+              - If command is unsupported on this OS, allow CHAT intent explaining why.
+              
+              Return ONLY raw JSON.`
+            },
+            { role: "user", content: text }
+          ]
+        })
+      })
+      const data = await response.json()
+      if (data.choices?.[0]?.message?.content) {
+        return JSON.parse(data.choices[0].message.content)
+      }
+    } catch (e) {
+      console.warn("AI Fallback:", e)
+    }
+  }
+
+  // 2. Smart Regex Fallback (If no API key or error)
+  const lower = text.toLowerCase()
+
+  // Mobile Apps
+  if (profile.isMobile) {
+    if (lower.includes('whatsapp')) return { type: 'OPEN_APP', params: { appName: 'whatsapp' } }
+    if (lower.includes('instagram')) return { type: 'OPEN_APP', params: { appName: 'instagram' } }
+    if (lower.includes('camera')) return { type: 'OPEN_APP', params: { appName: 'camera' } }
+  }
+  // Desktop Apps
+  else {
+    if (lower.includes('notepad')) return { type: 'OPEN_APP', params: { appName: 'notepad' } }
+    if (lower.includes('excel')) return { type: 'OPEN_APP', params: { appName: 'excel' } }
+    if (lower.includes('word')) return { type: 'OPEN_APP', params: { appName: 'word' } }
+  }
+
+  // Common
+  if (lower.includes('time')) return { type: 'TIME' }
+  if (lower.includes('search') || lower.includes('google')) {
+    return { type: 'SEARCH', params: { query: text.replace(/search|google|for/gi, '').trim() } }
+  }
+
+  return { type: 'CHAT', params: { response: null } } // Default fallback
+}
 
 const NEXTBOT = {
   name: 'nextbot',
@@ -175,182 +265,153 @@ export function useAssistant() {
       Object.values(timeouts).forEach(t => clearTimeout(t))
     }
   }, [scheduleReminder])
-  const processCommand = useCallback((text) => {
+  /* 
+     --- Process Command (Next-Gen AI & System Aware) --- 
+  */
+  const processCommand = useCallback(async (text) => {
     const rawText = text
     text = text.trim()
     addMessage(rawText, 'user')
 
+    const system = getSystemProfile()
+
+    // Quick Local Filters (Latency Optimization)
     // 1. Greetings
-    if (/^(hi|hello|hey|good morning|good afternoon|good evening|hola|bonjour|hallo)/i.test(text)) {
+    if (/^(hi|hello|hey|good morning|hola|bonjour)/i.test(text)) {
       const greeting = content.greetings[Math.floor(Math.random() * content.greetings.length)]
       speak(greeting)
       addMessage(greeting, 'bot', true)
       return
     }
 
-    // 2. Who are you
-    if (/who are you|what are you|your name/i.test(text)) {
-      const msg = "I'm nextbot, your personal assistant."
-      speak(msg)
-      addMessage(msg, 'bot', true)
-      return
+    // 2. AI / Smart Interpretation
+    let intent = { type: 'processing' }
+    try {
+      intent = await interpretCommandWithAI(text, system)
+    } catch (e) {
+      intent = { type: 'CHAT', params: { response: null } }
     }
 
-    // 3. Reminders (In X time)
-    const remindMatchIn = text.match(/remind me (?:to|about) (.+?) (?:in|after) (\d+)\s*(seconds?|minutes?|hours?|days?)/i)
-    if (remindMatchIn) {
-      const what = remindMatchIn[1].trim()
-      const amount = parseInt(remindMatchIn[2], 10)
-      const unit = remindMatchIn[3].toLowerCase()
+    // 3. Execution Engine
+    switch (intent.type) {
+      case 'OPEN_APP':
+        handleAppOpen(intent.params.appName, system)
+        break;
 
-      let ms = 0
-      if (unit.startsWith('second')) ms = amount * 1000
-      else if (unit.startsWith('minute')) ms = amount * 60 * 1000
-      else if (unit.startsWith('hour')) ms = amount * 60 * 60 * 1000
-      else if (unit.startsWith('day')) ms = amount * 24 * 60 * 60 * 1000
+      case 'SEARCH':
+        const searchResp = `Searching for ${intent.params.query}...`
+        speak(searchResp)
+        addMessage(searchResp, 'bot', true)
+        setTimeout(() => window.open(`https://www.google.com/search?q=${encodeURIComponent(intent.params.query)}`, '_blank'), 1000)
+        break;
 
-      const when = Date.now() + ms
-      const newR = { id: 'r:' + Date.now() + Math.random(), text: what, time: when }
+      case 'TIME':
+        const now = new Date()
+        const timeResp = `It's currently ${now.toLocaleTimeString()}.`
+        speak(timeResp)
+        addMessage(timeResp, 'bot', true)
+        break;
 
-      const all = loadReminders()
-      all.push(newR)
-      saveReminders(all)
-      scheduleReminder(newR)
+      case 'SYSTEM_CONTROL':
+        // Handle camera/etc
+        if (intent.params.target === 'camera') {
+          // Logic to dispatch event
+        }
+        break;
 
-      const resp = `I'll remind you to "${what}" in ${amount} ${unit}.`
-      speak(resp)
-      addMessage(resp, 'bot', true)
-      return
-    }
-
-    // 4. Time
-    if (/what(?:'s| is) (?:the )?time|tell me the time/i.test(text)) {
-      const now = new Date()
-      const resp = `The time is ${now.toLocaleTimeString()}.`
-      speak(resp)
-      addMessage(resp, 'bot', true)
-      return
-    }
-
-    // 5. Search
-    const searchMatch = text.match(/(?:search|find|look up|google)\s+(?:for\s+)?(.+)/i)
-    if (searchMatch) {
-      const q = encodeURIComponent(searchMatch[1])
-      const resp = `Searching for ${searchMatch[1]}...`
-      speak(resp)
-      addMessage(resp, 'bot', true)
-      setTimeout(() => window.open(`https://www.google.com/search?q=${q}`, '_blank'), 1000)
-      return
-    }
-
-    // 6. Todos - Add
-    const todoAdd = text.match(/(?:add|create|new)\s+(?:todo|task)\s+:?\s*(.+)/i)
-    if (todoAdd) {
-      const item = todoAdd[1].trim()
-      const todos = loadTodos()
-      todos.push({ text: item, done: false })
-      saveTodos(todos)
-      const resp = `Added task: "${item}".`
-      speak(resp)
-      addMessage(resp, 'bot')
-      return
-    }
-
-    // 7. Clear Chat
-    if (/clear chat|clear history/i.test(text)) {
-      setMessages([])
-      speak("Chat cleared.")
-      return
-    }
-
-    // 8. System Commands / Mobile Actions
-    if (/(?:call|dial)\s+(.+)/i.test(text) && isMobile) {
-      const number = text.match(/(?:call|dial)\s+(.+)/i)[1].replace(/\D/g, '')
-      const resp = `Calling ${number}...`
-      speak(resp)
-      addMessage(resp, 'bot', true)
-      window.open(`tel:${number}`)
-      return
-    }
-
-    const sysMatch = text.match(/(?:open|start|launch)\s+(.+)/i)
-    if (sysMatch && !text.match(/^search/i)) {
-      const appName = sysMatch[1].trim()
-
-      if (isMobile) {
-        // Mobile App Deep Linking (Naive approach for common apps)
-        const mobileApps = {
-          'whatsapp': 'whatsapp://',
-          'twitter': 'twitter://',
-          'instagram': 'instagram://',
-          'facebook': 'fb://',
-          'youtube': 'youtube://',
-          'spotify': 'spotify://',
-          'maps': 'maps://',
-          'mail': 'mailto:',
-          'calendar': 'calshow:',
+      case 'CHAT':
+      default:
+        // If AI gave a specific response, use it
+        if (intent.params?.start_camera) { // Fallback regex check inside switch if AI fails
+          // ...
         }
 
-        const scheme = Object.entries(mobileApps).find(([k]) => appName.includes(k))?.[1]
+        // Fallback or AI Chat Response
+        let responseText = intent.params?.response
 
-        if (scheme) {
-          const resp = `Opening ${appName}...`
-          speak(resp)
-          addMessage(resp, 'bot', true)
-          window.location.href = scheme
-        } else {
-          const resp = `Searching for ${appName} on mobile...`
-          speak(resp)
-          addMessage(resp, 'bot', true)
-          // Fallback to search if we don't know the scheme
-          setTimeout(() => window.open(`https://www.google.com/search?q=${appName}`, '_blank'), 1000)
+        if (!responseText) {
+          // Local fallback logic for basic commands if AI didn't return response
+          if (/(shut down|turn off) (camera|visual)/i.test(text)) {
+            window.dispatchEvent(new CustomEvent('shutdown-camera'))
+            responseText = "Visual sensors disabled."
+          } else if (/(turn on|enable) (camera|visual)/i.test(text)) {
+            window.dispatchEvent(new CustomEvent('start-camera'))
+            responseText = "Visual sensors enabled."
+          } else {
+            responseText = content.errors[Math.floor(Math.random() * content.errors.length)]
+          }
         }
-        return
+
+        speak(responseText)
+        addMessage(responseText, 'bot', true)
+        break;
+    }
+
+  }, [speak, addMessage, content])
+
+  // Helper: App Launching Logic
+  const handleAppOpen = (appName, system) => {
+    appName = appName.toLowerCase()
+
+    let msg = `Opening ${appName}...`
+    let url = null
+
+    // Mobile Handling
+    if (system.isMobile) {
+      const schemes = {
+        whatsapp: 'whatsapp://',
+        instagram: 'instagram://',
+        twitter: 'twitter://',
+        facebook: 'fb://',
+        youtube: 'youtube://',
+        settings: 'app-settings:',
+        camera: 'camera:', // Generic attempt
+        mail: 'mailto:',
+        maps: 'maps://'
       }
-
-      // Desktop Behavior (Bridge)
-      const resp = `Opening ${appName} on desktop...`
-      speak(resp)
-      addMessage(resp, 'bot', true)
-
+      // Fuzzy match
+      const key = Object.keys(schemes).find(k => appName.includes(k))
+      if (key) url = schemes[key]
+    }
+    // Desktop Handling
+    else {
+      // Desktop Bridge (Localhost)
       try {
         fetch('http://localhost:3002/command', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ command: appName })
-        }).catch(err => {
-          console.error("Bridge Error:", err)
-          addMessage("I couldn't reach the system bridge. Is server.js running?", 'bot')
+        }).catch(() => {
+          addMessage("Desktop bridge unavailable. Ensure server is running.", 'bot')
         })
-      } catch (e) {
-        console.error(e)
-      }
-      return
+        msg = `Attempting to launch ${appName} on ${system.os}...`
+        speak(msg)
+        addMessage(msg, 'bot', true)
+        return // Bridge handles it
+      } catch (e) { }
     }
 
-    // 9. Camera Control (Shutdown/Disable)
-    if (/(shut down|turn off|disable) (the )?(camera|webcam|visual input)/i.test(text)) {
-      window.dispatchEvent(new CustomEvent('shutdown-camera'))
-      const resp = "Visual input systems offline."
-      speak(resp)
-      addMessage(resp, 'bot', true)
-      return
+    if (url) {
+      speak(msg)
+      addMessage(msg, 'bot', true)
+      window.location.href = url
+    } else if (system.isMobile) {
+      // Fallback for mobile
+      const searchMsg = `I can't launch ${appName} directly. Searching Store...`
+      speak(searchMsg)
+      addMessage(searchMsg, 'bot', true)
+      setTimeout(() => window.open(`https://play.google.com/store/search?q=${appName}`, '_blank'), 1500)
+    } else {
+      // Desktop Web Fallback
+      const webMsg = `Launching web version of ${appName}...`
+      speak(webMsg)
+      addMessage(webMsg, 'bot', true)
+      // Simple map for web versions
+      if (appName.includes('word')) window.open('https://office.live.com/start/Word.aspx')
+      else if (appName.includes('excel')) window.open('https://office.live.com/start/Excel.aspx')
+      else window.open(`https://www.google.com/search?q=${appName}`, '_blank')
     }
-
-    if (/(turn on|enable|start) (the )?(camera|webcam|visual input)/i.test(text)) {
-      window.dispatchEvent(new CustomEvent('start-camera'))
-      const resp = "Visual input systems online."
-      speak(resp)
-      addMessage(resp, 'bot', true)
-      return
-    }
-
-    // Fallback
-    const err = content.errors[Math.floor(Math.random() * content.errors.length)]
-    speak(err)
-    addMessage(err, 'bot', true)
-
-  }, [speak, addMessage, scheduleReminder, content])
+  }
 
   // --- Recognition Setup ---
   // Use a ref to track if we *should* be listening, to handle auto-restart
@@ -403,6 +464,21 @@ export function useAssistant() {
     }
 
     recognitionRef.current = recognition
+
+    // If we were already listening (e.g. language changed), restart immediately
+    if (shouldListenRef.current) {
+      try {
+        recognition.start()
+        setIsListening(true)
+      } catch (e) { /* ignore start errors */ }
+    }
+
+    return () => {
+      if (recognition) {
+        recognition.onend = null // Prevent auto-restart loop during cleanup
+        recognition.stop()
+      }
+    }
   }, [processCommand, currentLang])
 
   const handleMicClick = useCallback(() => {
