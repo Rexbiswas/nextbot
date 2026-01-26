@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef } from 'react'
-import { Activity, Wifi, Cpu, Cloud, MapPin, Clock as ClockIcon, Eye, Globe, Mic } from 'lucide-react'
-import { useLanguage } from '../contexts/LanguageContext'
-import { motion, AnimatePresence } from 'framer-motion'
+import { useState, useEffect } from 'react'
+import { Activity, Wifi, Cpu, Cloud, MapPin, Mic } from 'lucide-react'
+
+import { motion } from 'framer-motion'
 
 // --- Style Utilities ---
 
@@ -115,7 +115,55 @@ const SystemStats = () => {
 }
 
 const LocationWeather = () => {
-    const [weather, setWeather] = useState({ temp: '28°C', condition: 'CLEAR', loc: 'DELHI, IN' })
+    const [weather, setWeather] = useState({ temp: '--°C', condition: 'SCANNING', loc: 'LOCATING...' })
+
+    useEffect(() => {
+        if ("geolocation" in navigator) {
+            navigator.geolocation.getCurrentPosition(async (position) => {
+                try {
+                    const { latitude, longitude } = position.coords;
+
+                    // Parallel Fetch: Weather (Open-Meteo) & Location (BigDataCloud) - Both Free/No-Key
+                    const [weatherRes, locRes] = await Promise.all([
+                        fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current_weather=true`),
+                        fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`)
+                    ]);
+
+                    const weatherData = await weatherRes.json();
+                    const locData = await locRes.json();
+
+                    // Map WMO Weather Code
+                    const wmo = weatherData.current_weather.weathercode;
+                    let condition = 'CLEAR';
+                    if (wmo > 0) condition = 'CLOUDY';
+                    if (wmo >= 45) condition = 'FOG';
+                    if (wmo >= 51) condition = 'DRIZZLE';
+                    if (wmo >= 61) condition = 'RAIN';
+                    if (wmo >= 71) condition = 'SNOW';
+                    if (wmo >= 95) condition = 'STORM';
+
+                    // Format Location
+                    let locationName = locData.city || locData.locality || locData.principalSubdivision || 'UNKNOWN';
+                    if (locData.countryCode) locationName += `, ${locData.countryCode}`;
+
+                    setWeather({
+                        temp: `${Math.round(weatherData.current_weather.temperature)}°C`,
+                        condition: condition,
+                        loc: locationName.toUpperCase()
+                    });
+
+                } catch (e) {
+                    console.error("Weather/Loc Error", e);
+                    setWeather(prev => ({ ...prev, condition: 'OFFLINE' }));
+                }
+            }, (error) => {
+                console.error("GPS Error", error);
+                setWeather(prev => ({ ...prev, loc: 'GPS DISABLED' }));
+            });
+        } else {
+            setWeather(prev => ({ ...prev, loc: 'NO GPS' }));
+        }
+    }, [])
 
     return (
         <motion.div initial={{ x: -20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ delay: 0.3 }}>
